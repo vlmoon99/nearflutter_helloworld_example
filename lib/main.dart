@@ -133,6 +133,39 @@ class _MyHomePageState extends State<MyHomePage> {
     stateStream.add(stateStream.value.copyWith(deleteKeyResult: res));
   }
 
+  Future<void> importKey() async {
+    final nearService = FlutterChainLibrary.defaultInstance()
+        .blockchainService
+        .blockchainServices[BlockChains.near] as NearBlockChainService;
+
+    final privateKeyFlutterChainFormat =
+        await nearService.getPrivateKeyFromSecretKeyFromNearApiJSFormat(
+      '3UKfNoHfkrauHhgu521TGcWdTqhoz1QJzKahAPVkhoBA5zsJv3ZKBUvT6BANVmZ7BdJUTejVEbNkhqcm562DfD4',
+    );
+    final publicKeyFlutterChainFormat =
+        await nearService.getPublicKeyFromSecretKeyFromNearApiJSFormat(
+      '3UKfNoHfkrauHhgu521TGcWdTqhoz1QJzKahAPVkhoBA5zsJv3ZKBUvT6BANVmZ7BdJUTejVEbNkhqcm562DfD4',
+    );
+
+    stateStream.add(stateStream.value.copyWith(
+        importKeyResult:
+            "privateKeyFlutterChainFormat -> $privateKeyFlutterChainFormat \n  publicKeyFlutterChainFormat -> $publicKeyFlutterChainFormat "));
+  }
+
+  Future<void> exportKey() async {
+    final wallet = stateStream.value.walletCreatingResult;
+    final nearService = FlutterChainLibrary.defaultInstance()
+        .blockchainService
+        .blockchainServices[BlockChains.near] as NearBlockChainService;
+
+    final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
+
+    final secretKey = await nearService.exportPrivateKeyToTheNearApiJsFormat(
+      currentBlockchainData: blockchainData,
+    );
+    stateStream.add(stateStream.value.copyWith(exportKeyResult: secretKey));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,27 +193,28 @@ class _MyHomePageState extends State<MyHomePage> {
                   ActionCard(
                     title: '3. Call Smart Contract',
                     onPressed: callSmartContract,
-                    result: currentState?.transferResult.toString() ?? '',
+                    result:
+                        currentState?.smartContractCallResult.toString() ?? '',
                   ),
                   ActionCard(
                     title: '4. Add Key',
                     onPressed: addKey,
-                    result: currentState?.transferResult.toString() ?? '',
+                    result: currentState?.addKeyResult.toString() ?? '',
                   ),
                   ActionCard(
                     title: '5. Delete Key',
                     onPressed: deleteKey,
-                    result: currentState?.transferResult.toString() ?? '',
+                    result: currentState?.deleteKeyResult.toString() ?? '',
                   ),
                   ActionCard(
-                    title: '6. Import from the Near-API-JS',
-                    onPressed: () {},
-                    result: currentState?.transferResult.toString() ?? '',
+                    title: '6. Export from the Near-API-JS',
+                    onPressed: exportKey,
+                    result: currentState?.exportKeyResult.toString() ?? '',
                   ),
                   ActionCard(
-                    title: '7. Export from the Near-API-JS',
-                    onPressed: () {},
-                    result: currentState?.transferResult.toString() ?? '',
+                    title: '7. Import from the Near-API-JS',
+                    onPressed: importKey,
+                    result: currentState?.importKeyResult.toString() ?? '',
                   ),
                 ],
               ),
@@ -196,6 +230,8 @@ class AppState {
   final dynamic smartContractCallResult;
   final dynamic addKeyResult;
   final dynamic deleteKeyResult;
+  final dynamic importKeyResult;
+  final dynamic exportKeyResult;
 
   AppState({
     required this.walletCreatingResult,
@@ -203,6 +239,8 @@ class AppState {
     this.smartContractCallResult,
     this.addKeyResult,
     this.deleteKeyResult,
+    this.exportKeyResult,
+    this.importKeyResult,
   });
   AppState copyWith({
     Wallet? walletCreatingResult,
@@ -210,6 +248,8 @@ class AppState {
     dynamic smartContractCallResult,
     dynamic addKeyResult,
     dynamic deleteKeyResult,
+    dynamic importKeyResult,
+    dynamic exportKeyResult,
   }) {
     return AppState(
       walletCreatingResult: walletCreatingResult ?? this.walletCreatingResult,
@@ -218,6 +258,8 @@ class AppState {
           smartContractCallResult ?? this.smartContractCallResult,
       addKeyResult: addKeyResult ?? this.addKeyResult,
       deleteKeyResult: deleteKeyResult ?? this.deleteKeyResult,
+      importKeyResult: importKeyResult ?? this.importKeyResult,
+      exportKeyResult: exportKeyResult ?? this.exportKeyResult,
     );
   }
 }
