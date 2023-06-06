@@ -57,10 +57,11 @@ class _MyHomePageState extends State<MyHomePage> {
     final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
-    final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
+    final blockchainData =
+        wallet.blockchainsData![BlockChains.near]!.first as NearBlockChainData;
     final res = await nearService.sendTransferNativeCoin(
       'vladddddd.testnet',
-      blockchainData.publicKey,
+      blockchainData.accountId ?? blockchainData.publicKey,
       NearFormatter.nearToYoctoNear('1'),
       blockchainData.privateKey,
       blockchainData.publicKey,
@@ -73,10 +74,11 @@ class _MyHomePageState extends State<MyHomePage> {
     final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
-    final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
+    final blockchainData =
+        wallet.blockchainsData![BlockChains.near]!.first as NearBlockChainData;
     final res = await nearService.callSmartContractFunction(
       'dev-1679756367837-29230485683009',
-      blockchainData.publicKey,
+      blockchainData.accountId ?? blockchainData.publicKey,
       blockchainData.privateKey,
       blockchainData.publicKey,
       NearBlockChainSmartContractArguments(
@@ -98,7 +100,8 @@ class _MyHomePageState extends State<MyHomePage> {
     final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
-    final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
+    final blockchainData =
+        wallet.blockchainsData![BlockChains.near]!.first as NearBlockChainData;
     final randomWallet =
         await library.blockchainService.generateNewWallet(walletName: "Random");
     const derivationPathRandom = DerivationPath(
@@ -117,7 +120,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final res = await nearService.addKey(
       allowance: NearFormatter.nearToYoctoNear('1'),
       derivationPathOfNewGeneratedAccount: derivationPathRandom,
-      fromAddress: blockchainData.publicKey,
+      fromAddress: blockchainData.accountId ?? blockchainData.publicKey,
       methodNames: [
         'set_greeting',
         'get_greeting',
@@ -184,6 +187,19 @@ class _MyHomePageState extends State<MyHomePage> {
             "privateKeyFlutterChainFormat -> $privateKeyFlutterChainFormat \n  publicKeyFlutterChainFormat -> $publicKeyFlutterChainFormat "));
   }
 
+  Future<void> changeEnv() async {
+    // final listOfUrls = {
+    //   "https://rpc.testnet.near.org",
+    //   "https://rpc.mainnet.near.org",
+    //   'https://rpc.betanet.near.org',
+    // };
+    await library.setBlockchainNetworkEnvironment(
+        blockchainType: BlockChains.near,
+        newUrl: 'https://rpc.testnet.near.org');
+    stateStream.add(stateStream.value
+        .copyWith(changeNetworkEnv: 'https://rpc.testnet.near.org'));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,6 +250,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     onPressed: importKey,
                     result: currentState?.importKeyResult.toString() ?? '',
                   ),
+                  ActionCard(
+                    title: '8. Change the network environment',
+                    onPressed: changeEnv,
+                    result: currentState?.changeNetworkEnv.toString() ?? '',
+                  ),
                 ],
               ),
             );
@@ -251,6 +272,7 @@ class AppState {
   final dynamic importKeyResult;
   final dynamic exportKeyResult;
   final dynamic publicKeyOfNewAddedKey;
+  final dynamic changeNetworkEnv;
 
   AppState({
     required this.walletCreatingResult,
@@ -261,6 +283,7 @@ class AppState {
     this.exportKeyResult,
     this.importKeyResult,
     this.publicKeyOfNewAddedKey,
+    this.changeNetworkEnv,
   });
   AppState copyWith({
     Wallet? walletCreatingResult,
@@ -271,6 +294,7 @@ class AppState {
     dynamic importKeyResult,
     dynamic exportKeyResult,
     dynamic publicKeyOfNewAddedKey,
+    dynamic changeNetworkEnv,
   }) {
     return AppState(
       walletCreatingResult: walletCreatingResult ?? this.walletCreatingResult,
@@ -283,6 +307,7 @@ class AppState {
       exportKeyResult: exportKeyResult ?? this.exportKeyResult,
       publicKeyOfNewAddedKey:
           publicKeyOfNewAddedKey ?? this.publicKeyOfNewAddedKey,
+      changeNetworkEnv: changeNetworkEnv ?? this.changeNetworkEnv,
     );
   }
 }
