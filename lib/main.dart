@@ -1,7 +1,10 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutterchain/flutterchain_lib.dart';
 import 'package:flutterchain/flutterchain_lib/constants/core/supported_blockchains.dart';
 import 'package:flutterchain/flutterchain_lib/formaters/chains/near_formater.dart';
+import 'package:flutterchain/flutterchain_lib/models/chains/near/near_blockchain_data.dart';
 import 'package:flutterchain/flutterchain_lib/models/chains/near/near_blockchain_smart_contract_arguments.dart';
 import 'package:flutterchain/flutterchain_lib/models/core/wallet.dart';
 import 'package:flutterchain/flutterchain_lib/services/chains/near_blockchain_service.dart';
@@ -41,18 +44,17 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final BehaviorSubject<AppState> stateStream = BehaviorSubject<AppState>();
+  final FlutterChainLibrary library = FlutterChainLibrary.defaultInstance();
 
   Future<void> createWallet() async {
-    final wallet = await FlutterChainLibrary.defaultInstance()
-        .createWalletWithGeneratedMnemonic(
-            walletName: "Test + ${DateTime.now().toString()}");
+    final wallet = await library.createWalletWithGeneratedMnemonic(
+        walletName: "Test + ${DateTime.now().toString()}");
     stateStream.add(AppState(walletCreatingResult: wallet));
   }
 
   Future<void> transferTokens() async {
     final wallet = stateStream.value.walletCreatingResult;
-    final nearService = FlutterChainLibrary.defaultInstance()
-        .blockchainService
+    final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
     final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
@@ -63,13 +65,12 @@ class _MyHomePageState extends State<MyHomePage> {
       blockchainData.privateKey,
       blockchainData.publicKey,
     );
-    stateStream.add(stateStream.value.copyWith(transferResult: res));
+    stateStream.add(stateStream.value.copyWith(transferResult: res.status));
   }
 
   Future<void> callSmartContract() async {
     final wallet = stateStream.value.walletCreatingResult;
-    final nearService = FlutterChainLibrary.defaultInstance()
-        .blockchainService
+    final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
     final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
@@ -87,75 +88,74 @@ class _MyHomePageState extends State<MyHomePage> {
         transferAmount: NearFormatter.nearToYoctoNear('0'),
       ),
     );
-    stateStream.add(stateStream.value.copyWith(smartContractCallResult: res));
+    stateStream.add(stateStream.value.copyWith(
+        smartContractCallResult:
+            "Result of SM call -> ${res.data['success']}"));
   }
 
   Future<void> addKey() async {
     final wallet = stateStream.value.walletCreatingResult;
-    final nearService = FlutterChainLibrary.defaultInstance()
-        .blockchainService
+    final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
     final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
+    final randomWallet =
+        await library.blockchainService.generateNewWallet(walletName: "Random");
+    const derivationPathRandom = DerivationPath(
+      accountNumber: '0',
+      change: '0',
+      address: '0',
+      coinType: '397',
+      purpose: '44',
+    );
+    final randomBlockChainData =
+        await nearService.getBlockChainDataByDerivationPath(
+            derivationPath: derivationPathRandom,
+            mnemonic: randomWallet.mnemonic,
+            passphrase: '');
+    log("randomBlockChainData publicKey ${randomBlockChainData.publicKey}");
     final res = await nearService.addKey(
       allowance: NearFormatter.nearToYoctoNear('1'),
-      derivationPathOfNewGeneratedAccount: const DerivationPath(
-        accountNumber: '0',
-        change: '0',
-        address: '0',
-        coinType: '397',
-        purpose: '44',
-      ),
+      derivationPathOfNewGeneratedAccount: derivationPathRandom,
       fromAddress: blockchainData.publicKey,
-      methodNames: [],
-      mnemonic: wallet.mnemonic,
-      permission: '',
+      methodNames: [
+        'set_greeting',
+        'get_greeting',
+      ],
+      mnemonic: randomWallet.mnemonic,
+      permission: 'functionCall',
       privateKey: blockchainData.privateKey,
       publicKey: blockchainData.publicKey,
       smartContractId: 'dev-1679756367837-29230485683009',
     );
-    stateStream.add(stateStream.value.copyWith(addKeyResult: res));
+    stateStream.add(
+      stateStream.value.copyWith(
+        addKeyResult: res.status,
+        publicKeyOfNewAddedKey: randomBlockChainData.publicKey,
+      ),
+    );
   }
 
   Future<void> deleteKey() async {
     final wallet = stateStream.value.walletCreatingResult;
-    final nearService = FlutterChainLibrary.defaultInstance()
-        .blockchainService
+    final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
-    final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
+    final blockchainData =
+        wallet.blockchainsData![BlockChains.near]!.first as NearBlockChainData;
 
     final res = await nearService.deleteKey(
-      fromAdress: 'your_added_key',
+      accountId: blockchainData.accountId ?? blockchainData.publicKey,
       privateKey: blockchainData.privateKey,
       publicKey: blockchainData.publicKey,
+      deletedPublicKey: stateStream.value.publicKeyOfNewAddedKey,
     );
-    stateStream.add(stateStream.value.copyWith(deleteKeyResult: res));
-  }
-
-  Future<void> importKey() async {
-    final nearService = FlutterChainLibrary.defaultInstance()
-        .blockchainService
-        .blockchainServices[BlockChains.near] as NearBlockChainService;
-
-    final privateKeyFlutterChainFormat =
-        await nearService.getPrivateKeyFromSecretKeyFromNearApiJSFormat(
-      '3UKfNoHfkrauHhgu521TGcWdTqhoz1QJzKahAPVkhoBA5zsJv3ZKBUvT6BANVmZ7BdJUTejVEbNkhqcm562DfD4',
-    );
-    final publicKeyFlutterChainFormat =
-        await nearService.getPublicKeyFromSecretKeyFromNearApiJSFormat(
-      '3UKfNoHfkrauHhgu521TGcWdTqhoz1QJzKahAPVkhoBA5zsJv3ZKBUvT6BANVmZ7BdJUTejVEbNkhqcm562DfD4',
-    );
-
-    stateStream.add(stateStream.value.copyWith(
-        importKeyResult:
-            "privateKeyFlutterChainFormat -> $privateKeyFlutterChainFormat \n  publicKeyFlutterChainFormat -> $publicKeyFlutterChainFormat "));
+    stateStream.add(stateStream.value.copyWith(deleteKeyResult: res.status));
   }
 
   Future<void> exportKey() async {
     final wallet = stateStream.value.walletCreatingResult;
-    final nearService = FlutterChainLibrary.defaultInstance()
-        .blockchainService
+    final nearService = library.blockchainService
         .blockchainServices[BlockChains.near] as NearBlockChainService;
 
     final blockchainData = wallet.blockchainsData![BlockChains.near]!.first;
@@ -164,6 +164,24 @@ class _MyHomePageState extends State<MyHomePage> {
       currentBlockchainData: blockchainData,
     );
     stateStream.add(stateStream.value.copyWith(exportKeyResult: secretKey));
+  }
+
+  Future<void> importKey() async {
+    final nearService = library.blockchainService
+        .blockchainServices[BlockChains.near] as NearBlockChainService;
+
+    final privateKeyFlutterChainFormat =
+        await nearService.getPrivateKeyFromSecretKeyFromNearApiJSFormat(
+      stateStream.value.exportKeyResult.toString().split(":").last,
+    );
+    final publicKeyFlutterChainFormat =
+        await nearService.getPublicKeyFromSecretKeyFromNearApiJSFormat(
+      stateStream.value.exportKeyResult.toString().split(":").last,
+    );
+
+    stateStream.add(stateStream.value.copyWith(
+        importKeyResult:
+            "privateKeyFlutterChainFormat -> $privateKeyFlutterChainFormat \n  publicKeyFlutterChainFormat -> $publicKeyFlutterChainFormat "));
   }
 
   @override
@@ -232,6 +250,7 @@ class AppState {
   final dynamic deleteKeyResult;
   final dynamic importKeyResult;
   final dynamic exportKeyResult;
+  final dynamic publicKeyOfNewAddedKey;
 
   AppState({
     required this.walletCreatingResult,
@@ -241,6 +260,7 @@ class AppState {
     this.deleteKeyResult,
     this.exportKeyResult,
     this.importKeyResult,
+    this.publicKeyOfNewAddedKey,
   });
   AppState copyWith({
     Wallet? walletCreatingResult,
@@ -250,6 +270,7 @@ class AppState {
     dynamic deleteKeyResult,
     dynamic importKeyResult,
     dynamic exportKeyResult,
+    dynamic publicKeyOfNewAddedKey,
   }) {
     return AppState(
       walletCreatingResult: walletCreatingResult ?? this.walletCreatingResult,
@@ -260,6 +281,8 @@ class AppState {
       deleteKeyResult: deleteKeyResult ?? this.deleteKeyResult,
       importKeyResult: importKeyResult ?? this.importKeyResult,
       exportKeyResult: exportKeyResult ?? this.exportKeyResult,
+      publicKeyOfNewAddedKey:
+          publicKeyOfNewAddedKey ?? this.publicKeyOfNewAddedKey,
     );
   }
 }
@@ -280,10 +303,13 @@ class ActionCard extends StatelessWidget {
     return Card(
       child: Column(
         children: <Widget>[
-          Text(title, style: TextStyle(fontSize: 20)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 20),
+          ),
           ElevatedButton(
-            child: Text(title),
             onPressed: onPressed,
+            child: const Text("Execute"),
           ),
           SelectableText(result),
         ],
