@@ -317,7 +317,8 @@ class ActionCard extends StatelessWidget {
   final VoidCallback onPressed;
   final String result;
 
-  ActionCard({
+  const ActionCard({
+    super.key,
     required this.title,
     required this.onPressed,
     required this.result,
